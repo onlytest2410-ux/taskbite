@@ -51,10 +51,10 @@ const AD_VIEW_DURATION = 30;
 const AD_URL = 'https://www.profitableratecpmnetwork.com/ag1v3m83?key=8adb519f3b317f350d8485bb76c3a4c2';
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xjyveyja';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 
 const WITHDRAW_RULES: Record<WithdrawMethod, { min: number; currency: string; label: string; placeholder: string; note: string; icon: typeof Wallet }> = {
   lightning: {
