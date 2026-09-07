@@ -237,17 +237,18 @@ function App() {
     setLoginPass('');
     setLoginError('');
   };
+  const handleSignup = () => {
   const recaptchaResponse = (window as any).grecaptcha?.getResponse();
   if (!recaptchaResponse) {
     setSignupError('Please verify that you are not a robot.');
     return;
   }
-  
-  const handleSignUp = () => {
-    if (suUsername.trim().length < 3) {
-      setSignupError('Username must be at least 3 characters');
-      return;
-    }
+
+  if (suUsername.trim().length < 3) {
+    setSignupError('Username must be at least 3 characters');
+    return;
+  }
+    
     if (!isValidEmail(suEmail.trim())) {
       setSignupError('Please enter a valid email address');
       return;
