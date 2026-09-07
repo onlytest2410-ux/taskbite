@@ -55,32 +55,6 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.su
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-
-const withdrawalMethods = [
-  {
-    id: 'faucetpay',
-    name: 'FaucetPay',
-    currency: 'USDT',
-    placeholder: 'Enter your FaucetPay Email or Deposit Address',
-    feeText: 'Zero-fee transfer. Minimum: $0.50 USDT'
-  },
-  {
-    id: 'binance',
-    name: 'Binance Pay',
-    currency: 'USDT',
-    placeholder: 'Enter your Binance Pay ID or Email',
-    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
-  },
-  {
-    id: 'direct',
-    name: 'Direct Wallet',
-    currency: 'USDT',
-    placeholder: 'Enter your USDT (BEP-20) Wallet Address',
-    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
-  }
-];
-
-
 const formatHHMMSS = (totalSeconds: number): string => {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
