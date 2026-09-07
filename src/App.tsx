@@ -108,29 +108,31 @@ const generateReferralCode = (username: string): string => {
 
 const isValidEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const WITHDRAW_RULES = {
-  faucetpay: {
-    label: 'FaucetPay Email or Address',
+
+const withdrawalMethods = [
+  {
+    id: 'faucetpay',
+    name: 'FaucetPay',
+    currency: 'USDT',
     placeholder: 'Enter your FaucetPay Email or Deposit Address',
-    currency: 'USDT',
-    min: 0.50,
-    icon: Zap,
+    feeText: 'Zero-fee transfer. Minimum: $0.50 USDT'
   },
-  binance: {
-    label: 'Binance Pay ID or Email',
+  {
+    id: 'binance',
+    name: 'Binance Pay',
+    currency: 'USDT',
     placeholder: 'Enter your Binance Pay ID or Email',
-    currency: 'USDT',
-    min: 3.00,
-    icon: Wallet,
+    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
   },
-  direct: {
-    label: 'Wallet Address (BEP-20)',
-    placeholder: 'Enter your USDT (BEP-20) wallet address',
+  {
+    id: 'direct',
+    name: 'Direct Wallet',
     currency: 'USDT',
-    min: 3.00,
-    icon: Wallet,
-  },
-};
+    placeholder: 'Enter your USDT (BEP-20) Wallet Address',
+    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
+  }
+];
+
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
