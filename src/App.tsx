@@ -576,82 +576,7 @@ function App() {
             </div>
           )}
 
-          {/* Sign Up Form */}
-          {authMode === 'signup' && (
-            <div className="mb-4">
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Username (min 3 characters)</label>
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="text"
-                    value={suUsername}
-                    onChange={(e) => { setSuUsername(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="Choose a username"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="email"
-                    value={suEmail}
-                    onChange={(e) => { setSuEmail(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="you@example.com"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Password (min 6 characters)</label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="password"
-                    value={suPass}
-                    onChange={(e) => { setSuPass(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="Create a password"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Confirm Password</label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="password"
-                    value={suConfirm}
-                    onChange={(e) => { setSuConfirm(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="Re-enter password"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4 flex justify-center">
-                <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
-              </div>
-
-              <button
-                onClick={handleSignup}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#2ea043]"
-              >
-                <User className="h-4 w-4" />
-                Create Account
-              </button>
-            </div>
-          )}
+          
             
                   {/* Sign Up Form */}
           {authMode === 'signup' && (
@@ -735,10 +660,7 @@ function App() {
                 Create Account
               </button>
             </div>
-          )}
-            
-            
-                
+            )}
           {/* A-Ads Banner */}
           <div id="frame" style={{ width: '100%', margin: '20px auto', position: 'relative', zIndex: 10 }}>
             <iframe
@@ -754,9 +676,6 @@ function App() {
           </p>
         </div>
       </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0d1117] text-gray-200">
       {/* Background gradient accents */}
@@ -764,7 +683,6 @@ function App() {
         <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-[#58a6ff] opacity-[0.07] blur-[120px]" />
         <div className="absolute top-1/3 -right-40 h-96 w-96 rounded-full bg-[#3fb950] opacity-[0.05] blur-[120px]" />
       </div>
-
       {/* App Header */}
       <header className="sticky top-0 z-30 border-b border-[#30363d] bg-[#0d1117]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
