@@ -79,6 +79,13 @@ const withdrawalMethods = [
   }
 ];
 
+const WITHDRAW_RULES: Record<string, { min: number; currency: string }> = {
+  faucetpay: { min: 0.50, currency: 'USDT' },
+  binance: { min: 3.00, currency: 'USDT' },
+  direct: { min: 5.00, currency: 'USDT' }
+};
+
+
 const formatHHMMSS = (totalSeconds: number): string => {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
