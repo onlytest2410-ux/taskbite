@@ -45,6 +45,30 @@ interface StoredUser {
   transactions: Transaction[];
 }
 
+const withdrawalMethods = [
+  {
+    id: 'faucetpay',
+    name: 'FaucetPay',
+    currency: 'USDT',
+    placeholder: 'Enter your FaucetPay Email or Deposit Address',
+    feeText: 'Zero-fee transfer. Minimum: $0.50 USDT'
+  },
+  {
+    id: 'binance',
+    name: 'Binance Pay',
+    currency: 'USDT',
+    placeholder: 'Enter your Binance Pay ID or Email',
+    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
+  },
+  {
+    id: 'direct',
+    name: 'Direct Wallet',
+    currency: 'USDT',
+    placeholder: 'Enter your USDT (BEP-20) Wallet Address',
+    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
+  }
+];
+
 const FAUCET_REWARD = 0.001;
 const FAUCET_COOLDOWN = 43200; // 12 hours in seconds
 const AD_VIEW_DURATION = 30;
@@ -83,29 +107,6 @@ const generateReferralCode = (username: string): string => {
 const isValidEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-const withdrawalMethods = [
-  {
-    id: 'faucetpay',
-    name: 'FaucetPay',
-    currency: 'USDT',
-    placeholder: 'Enter your FaucetPay Email or Deposit Address',
-    feeText: 'Zero-fee transfer. Minimum: $0.50 USDT'
-  },
-  {
-    id: 'binance',
-    name: 'Binance Pay',
-    currency: 'USDT',
-    placeholder: 'Enter your Binance Pay ID or Email',
-    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
-  },
-  {
-    id: 'direct',
-    name: 'Direct Wallet',
-    currency: 'USDT',
-    placeholder: 'Enter your USDT (BEP-20) Wallet Address',
-    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
-  }
-];
 
 
 function App() {
