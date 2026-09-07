@@ -739,12 +739,6 @@ function App() {
             </div>
           )}
             
-            
-
-{/* Google reCAPTCHA */}
-<div className="mb-4 flex justify-center">
-  <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
-</div>
                 
           {/* A-Ads Banner */}
           <div id="frame" style={{ width: '100%', margin: '20px auto', position: 'relative', zIndex: 10 }}>
