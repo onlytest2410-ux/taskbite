@@ -521,11 +521,6 @@ function App() {
                 Sign Up
               </button>
             </div>
-
-            {/* Google reCAPTCHA */}
-<div className="mb-4 flex justify-center">
-  <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
-</div>
             
             {/* Sign In Form */}
             {authMode === 'signin' && (
@@ -560,22 +555,27 @@ function App() {
                   </div>
                 </div>
 
-                {loginError && (
-                  <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
-                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                    {loginError}
-                  </div>
-                )}
+                              {loginError && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-400">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {loginError}
+                </div>
+              )}
 
-                <button
-                  onClick={handleSignIn}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#58a6ff] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#79b8ff] active:scale-[0.98]"
-                >
-                  <LogOut className="h-5 w-5 rotate-180" />
-                  Sign In
-                </button>
-              </>
-            )}
+              <div className="mb-4 flex justify-center">
+                <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+              </div>
+
+              <button
+                onClick={handleSignin}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#58a6ff] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#79c0ff]"
+              >
+                <LogOut className="h-5 w-5 rotate-180" />
+                Sign In
+              </button>
+            </div>
+          )}
+            
             
             {/* Sign Up Form */}
             {authMode === 'signup' && (
@@ -640,38 +640,34 @@ function App() {
                   </div>
                 </div>
 
-                
+                              {signupError && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-400">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {signupError}
+                </div>
+              )}
 
-                {signupError && (
-                  <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
-                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                    {signupError}
-                  </div>
-                )}
-<button
-  onClick={handleSignup}
-  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#2ea043]"
->
-  <User className="h-4 w-4" />
-  Create Account
-</button>
-  </div>
-)}
+              <div className="mb-4 flex justify-center">
+                <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+              </div>
+
+              <button
+                onClick={handleSignup}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#2ea043]"
+              >
+                <User className="h-4 w-4" />
+                Create Account
+              </button>
+            </div>
+          )}
+            
             
 
 {/* Google reCAPTCHA */}
 <div className="mb-4 flex justify-center">
   <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
 </div>
-                  
-                  
-                  <User className="h-5 w-5" />
-                  Create Account
-                </button>
-              </>
-            )}
-          </div>
-
+                
           {/* A-Ads Banner */}
           <div id="frame" style={{ width: '100%', margin: '20px auto', position: 'relative', zIndex: 10 }}>
             <iframe
