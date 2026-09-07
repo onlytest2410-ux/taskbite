@@ -129,11 +129,6 @@ function App() {
   const [suConfirm, setSuConfirm] = useState('');
   const [signupError, setSignupError] = useState('');
 
-  // CAPTCHA state
-  const [captchaA, setCaptchaA] = useState(0);
-  const [captchaB, setCaptchaB] = useState(0);
-  const [captchaAnswer, setCaptchaAnswer] = useState('');
-
   // Dashboard state
   const [balance, setBalance] = useState(0);
   const [lastClaimTime, setLastClaimTime] = useState<number | null>(null);
