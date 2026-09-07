@@ -24,7 +24,7 @@ import {
   Bitcoin,
 } from 'lucide-react';
 
-type WithdrawMethod = 'lightning' | 'faucetpay' | 'binance';
+type WithdrawMethod = 'direct' | 'faucetpay' | 'binance';
 type AuthMode = 'signin' | 'signup';
 
 interface Transaction {
@@ -56,32 +56,30 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 
-const WITHDRAW_RULES: Record<WithdrawMethod, { min: number; currency: string; label: string; placeholder: string; note: string; icon: typeof Wallet }> = {
-  lightning: {
-    min: 0.05,
-    currency: 'BTC',
-    label: 'Lightning Address',
-    placeholder: 'username@walletofsatoshi.com',
-    note: 'Instant micro-payout. Minimum: $0.05',
-    icon: Zap,
-  },
-  faucetpay: {
-    min: 0.50,
+const withdrawalMethods = [
+  {
+    id: 'faucetpay',
+    name: 'FaucetPay',
     currency: 'USDT',
-    label: 'Registered FaucetPay Email',
-    placeholder: 'youremail@example.com',
-    note: 'Direct off-chain transfer. Minimum: $0.50 USDT',
-    icon: Wallet,
+    placeholder: 'Enter your FaucetPay Email or Deposit Address',
+    feeText: 'Zero-fee transfer. Minimum: $0.50 USDT'
   },
-  binance: {
-    min: 3.00,
+  {
+    id: 'binance',
+    name: 'Binance Pay',
     currency: 'USDT',
-    label: 'Binance Pay ID or Binance Email',
-    placeholder: 'Enter your Pay ID or email',
-    note: 'Zero-fee transfer. Minimum: $3.00 USDT',
-    icon: Bitcoin,
+    placeholder: 'Enter your Binance Pay ID or Email',
+    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
   },
-};
+  {
+    id: 'direct',
+    name: 'Direct Wallet',
+    currency: 'USDT',
+    placeholder: 'Enter your USDT (BEP-20) Wallet Address',
+    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
+  }
+];
+
 
 const formatHHMMSS = (totalSeconds: number): string => {
   const h = Math.floor(totalSeconds / 3600);
