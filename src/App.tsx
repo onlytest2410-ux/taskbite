@@ -1170,7 +1170,7 @@ function App() {
                     >
                       <Icon className="mx-auto mb-1 h-4 w-4" />
                       <span className="block text-[11px] font-semibold leading-tight">
-                        {m === 'lightning' ? 'Lightning' : m === 'faucetpay' ? 'FaucetPay' : 'Binance Pay'}
+                        {m === 'faucetpay' ? 'FaucetPay' : m === 'binance' ? 'Binance Pay' : 'Direct Wallet'}
                       </span>
                       <span className="block text-[9px] text-gray-500 leading-tight">
                         {rule.currency}
@@ -1242,9 +1242,13 @@ function App() {
                   Request Withdrawal
                 </>
               )}
-            </button>
-          </div>
-        </div>
+                </button>
+    <div className="mt-3 p-2 bg-gray-800/60 rounded-lg text-center text-xs text-gray-400 border border-gray-700/50">
+      ⚠️ Note: For security and verification, withdrawals are processed within 7 business days.
+    </div>
+  </div>
+</div>
+      
       )}
 
       {/* Toast */}
