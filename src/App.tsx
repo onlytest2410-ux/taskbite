@@ -205,6 +205,12 @@ function App() {
       setLoginError('Please enter your username');
       return;
     }
+      const recaptchaResponse = (window as any).grecaptcha?.getResponse();
+  if (!recaptchaResponse) {
+    setLoginError('Please verify that you are not a robot.');
+    return;
+  }
+    
     if (!loginPass.trim()) {
       setLoginError('Please enter your password');
       return;
@@ -231,7 +237,12 @@ function App() {
     setLoginPass('');
     setLoginError('');
   };
-
+  const recaptchaResponse = (window as any).grecaptcha?.getResponse();
+  if (!recaptchaResponse) {
+    setSignupError('Please verify that you are not a robot.');
+    return;
+  }
+  
   const handleSignUp = () => {
     if (suUsername.trim().length < 3) {
       setSignupError('Username must be at least 3 characters');
@@ -565,6 +576,12 @@ function App() {
               </>
             )}
 
+{/* Google reCAPTCHA */}
+<div className="mb-4 flex justify-center">
+  <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+</div>
+            
+            
             {/* Sign Up Form */}
             {authMode === 'signup' && (
               <>
@@ -641,6 +658,13 @@ function App() {
                   onClick={handleSignUp}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#46c75f] active:scale-[0.98]"
                 >
+
+{/* Google reCAPTCHA */}
+<div className="mb-4 flex justify-center">
+  <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+</div>
+                  
+                  
                   <User className="h-5 w-5" />
                   Create Account
                 </button>
