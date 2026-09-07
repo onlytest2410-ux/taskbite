@@ -142,7 +142,7 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  const [method, setMethod] = useState<WithdrawMethod>('lightning');
+  const [method, setMethod] = useState<WithdrawMethod>('faucetpay');
   const [destination, setDestination] = useState('');
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
