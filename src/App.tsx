@@ -19,7 +19,6 @@ import {
   LogOut,
   User,
   Mail,
-  RefreshCw,
   History,
   Bitcoin,
 } from 'lucide-react';
@@ -153,12 +152,6 @@ function App() {
   const [activePage, setActivePage] = useState<'dashboard' | 'earn'>('dashboard');
   const [iframeLoaded, setIframeLoaded] = useState(false);
 
-  const regenerateCaptcha = useCallback(() => {
-    setCaptchaA(Math.floor(Math.random() * 9) + 1);
-    setCaptchaB(Math.floor(Math.random() * 9) + 1);
-    setCaptchaAnswer('');
-  }, []);
-
   // On mount, restore session
   useEffect(() => {
     const sessionUser = localStorage.getItem('currentUser');
@@ -217,17 +210,7 @@ function App() {
       setLoginError('Please enter your password');
       return;
     }
-    if (!captchaAnswer.trim()) {
-      setLoginError('Invalid CAPTCHA answer.');
-      regenerateCaptcha();
-      return;
-    }
-    if (parseInt(captchaAnswer, 10) !== captchaA + captchaB) {
-      setLoginError('Invalid CAPTCHA answer.');
-      regenerateCaptcha();
-      return;
-    }
-
+    
     const users = getUsers();
     const user = users[loginUser.trim()];
     if (!user) {
@@ -274,28 +257,16 @@ function App() {
       regenerateCaptcha();
       return;
     }
-    if (!captchaAnswer.trim()) {
-      setSignupError('Invalid CAPTCHA answer.');
-      regenerateCaptcha();
-      return;
-    }
-    if (parseInt(captchaAnswer, 10) !== captchaA + captchaB) {
-      setSignupError('Invalid CAPTCHA answer.');
-      regenerateCaptcha();
-      return;
-    }
-
+    
     const users = getUsers();
     const uname = suUsername.trim();
     if (users[uname]) {
       setSignupError('Username already exists. Please choose another.');
-      regenerateCaptcha();
       return;
     }
     const existingEmail = Object.values(users).find((u) => u.email === suEmail.trim());
     if (existingEmail) {
-      setSignupError('Email already registered. Please sign in instead.');
-      regenerateCaptcha();
+      setSignupError('Email already registered. Please sign in instead.')
       return;
     }
 
@@ -336,7 +307,6 @@ function App() {
     setSuEmail('');
     setSuPass('');
     setSuConfirm('');
-    regenerateCaptcha();
   };
 
   // Ad modal countdown timer
@@ -586,34 +556,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* CAPTCHA */}
-                <div className="mb-4">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Security Check</label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#30363d] bg-[#0d1117] py-3 text-sm font-bold text-white">
-                      <span>{captchaA}</span>
-                      <span className="text-gray-500">+</span>
-                      <span>{captchaB}</span>
-                      <span className="text-gray-500">=</span>
-                      <input
-                        type="number"
-                        value={captchaAnswer}
-                        onChange={(e) => { setCaptchaAnswer(e.target.value); setLoginError(''); }}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
-                        placeholder="?"
-                        className="w-14 rounded-lg border border-[#30363d] bg-[#161b22] px-2 py-1.5 text-center text-sm text-white outline-none focus:border-[#58a6ff]"
-                      />
-                    </div>
-                    <button
-                      onClick={regenerateCaptcha}
-                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 transition-colors hover:bg-[#30363d] hover:text-white"
-                      title="New challenge"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
                 {loginError && (
                   <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
                     <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -694,33 +636,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* CAPTCHA */}
-                <div className="mb-4">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Security Check</label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#30363d] bg-[#0d1117] py-3 text-sm font-bold text-white">
-                      <span>{captchaA}</span>
-                      <span className="text-gray-500">+</span>
-                      <span>{captchaB}</span>
-                      <span className="text-gray-500">=</span>
-                      <input
-                        type="number"
-                        value={captchaAnswer}
-                        onChange={(e) => { setCaptchaAnswer(e.target.value); setSignupError(''); }}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-                        placeholder="?"
-                        className="w-14 rounded-lg border border-[#30363d] bg-[#161b22] px-2 py-1.5 text-center text-sm text-white outline-none focus:border-[#58a6ff]"
-                      />
-                    </div>
-                    <button
-                      onClick={regenerateCaptcha}
-                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 transition-colors hover:bg-[#30363d] hover:text-white"
-                      title="New challenge"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                
 
                 {signupError && (
                   <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
