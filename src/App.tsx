@@ -1151,48 +1151,50 @@ function App() {
               </button>
             </div>
 
-            {/* Method Selector - 3 Options */}
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">Withdrawal Method</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(WITHDRAW_RULES) as WithdrawMethod[]).map((m) => {
-                  const rule = WITHDRAW_RULES[m];
-                  const Icon = rule.icon;
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => { setMethod(m); setAmount(''); }}
-                      className={`rounded-xl border py-3 px-1 text-center transition-all ${
-                        method === m
-                          ? 'border-[#58a6ff] bg-[#58a6ff]/10 text-white'
-                          : 'border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      <Icon className="mx-auto mb-1 h-4 w-4" />
-                      <span className="block text-[11px] font-semibold leading-tight">
-                        {m === 'faucetpay' ? 'FaucetPay' : m === 'binance' ? 'Binance Pay' : 'Direct Wallet'}
-                      </span>
-                      <span className="block text-[9px] text-gray-500 leading-tight">
-                        {rule.currency}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {/* Destination Input */}
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">
-                {WITHDRAW_RULES[method].label}
-              </label>
-              <input
-                type="text"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder={WITHDRAW_RULES[method].placeholder}
-                className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
-              />
-            </div>
+                    {/* Method Selector - 3 Options */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-medium text-gray-400">Withdrawal Method</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(WITHDRAW_RULES) as WithdrawMethod[]).map((m) => {
+              const rule = WITHDRAW_RULES[m];
+              const Icon = rule.icon;
+              return (
+                <button
+                  key={m}
+                  onClick={() => { setMethod(m); setAmount(''); }}
+                  className={`rounded-xl border py-3 px-1 text-center transition-all ${
+                    method === m
+                      ? 'border-[#58a6ff] bg-[#58a6ff]/10 text-white'
+                      : 'border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Icon className="mx-auto mb-1 h-4 w-4" />
+                  <span className="block text-[11px] font-semibold leading-tight">
+                    {m === 'faucetpay' ? 'FaucetPay' : m === 'binance' ? 'Binance Pay' : 'Direct Wallet'}
+                  </span>
+                  <span className="block text-[9px] text-gray-500 leading-tight">
+                    {rule.currency}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Destination Input */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-medium text-gray-400">
+            {WITHDRAW_RULES[method]?.label}
+          </label>
+          <input
+            type="text"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder={WITHDRAW_RULES[method]?.placeholder}
+            className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-3 text-sm text-white placeholder-gray-500 focus:border-[#58a6ff] focus:outline-none"
+          />
+        </div>
+            
 
             {/* Amount Input */}
             <div className="mb-3">
