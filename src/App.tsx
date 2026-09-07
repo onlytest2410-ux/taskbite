@@ -108,6 +108,29 @@ const generateReferralCode = (username: string): string => {
 
 const isValidEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const WITHDRAW_RULES = {
+  faucetpay: {
+    label: 'FaucetPay Email or Address',
+    placeholder: 'Enter your FaucetPay Email or Deposit Address',
+    currency: 'USDT',
+    min: 0.50,
+    icon: Zap,
+  },
+  binance: {
+    label: 'Binance Pay ID or Email',
+    placeholder: 'Enter your Binance Pay ID or Email',
+    currency: 'USDT',
+    min: 3.00,
+    icon: Wallet,
+  },
+  direct: {
+    label: 'Wallet Address (BEP-20)',
+    placeholder: 'Enter your USDT (BEP-20) wallet address',
+    currency: 'USDT',
+    min: 3.00,
+    icon: Wallet,
+  },
+};
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -378,12 +401,12 @@ function App() {
   };
 
   const openModal = () => {
-    setAmount('');
-    setDestination('');
-    setMethod('lightning');
-    setIsModalOpen(true);
-  };
-
+  setAmount('');
+  setDestination('');
+  setMethod('faucetpay');
+  setIsModalOpen(true);
+};
+  
   const closeModal = () => {
     setIsModalOpen(false);
     setAmount('');
