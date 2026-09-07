@@ -45,6 +45,16 @@ interface StoredUser {
   transactions: Transaction[];
 }
 
+const FAUCET_REWARD = 0.001;
+const FAUCET_COOLDOWN = 43200; // 12 hours in seconds
+const AD_VIEW_DURATION = 30;
+const AD_URL = 'https://www.profitableratecpmnetwork.com/ag1v3m83?key=8adb519f3b317f350d8485bb76c3a4c2';
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xjyveyja';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const withdrawalMethods = [
   {
     id: 'faucetpay',
@@ -68,16 +78,6 @@ const withdrawalMethods = [
     feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
   }
 ];
-
-const FAUCET_REWARD = 0.001;
-const FAUCET_COOLDOWN = 43200; // 12 hours in seconds
-const AD_VIEW_DURATION = 30;
-const AD_URL = 'https://www.profitableratecpmnetwork.com/ag1v3m83?key=8adb519f3b317f350d8485bb76c3a4c2';
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xjyveyja';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const formatHHMMSS = (totalSeconds: number): string => {
   const h = Math.floor(totalSeconds / 3600);
