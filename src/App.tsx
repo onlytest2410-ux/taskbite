@@ -653,72 +653,70 @@ function App() {
             </div>
           )}
             
-            
-            
-            {/* Sign Up Form */}
-            {authMode === 'signup' && (
-              <>
-                <div className="mb-4">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Username (min 3 characters)</label>
-                  <div className="relative">
-                    <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                    <input
-                      type="text"
-                      value={suUsername}
-                      onChange={(e) => { setSuUsername(e.target.value); setSignupError(''); }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-                      placeholder="Choose a username"
-                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
-                    />
-                  </div>
+                  {/* Sign Up Form */}
+          {authMode === 'signup' && (
+            <div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Username (min 3 characters)</label>
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                  <input
+                    type="text"
+                    value={suUsername}
+                    onChange={(e) => { setSuUsername(e.target.value); setSignupError(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
+                    placeholder="Choose a username"
+                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
+                  />
                 </div>
+              </div>
 
-                <div className="mb-4">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                    <input
-                      type="email"
-                      value={suEmail}
-                      onChange={(e) => { setSuEmail(e.target.value); setSignupError(''); }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-                      placeholder="you@example.com"
-                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
-                    />
-                  </div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                  <input
+                    type="email"
+                    value={suEmail}
+                    onChange={(e) => { setSuEmail(e.target.value); setSignupError(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
+                    placeholder="you@example.com"
+                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
+                  />
                 </div>
+              </div>
 
-                <div className="mb-4">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Password (min 6 characters)</label>
-                  <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                    <input
-                      type="password"
-                      value={suPass}
-                      onChange={(e) => { setSuPass(e.target.value); setSignupError(''); }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-                      placeholder="Create a password"
-                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
-                    />
-                  </div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Password (min 6 characters)</label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                  <input
+                    type="password"
+                    value={suPass}
+                    onChange={(e) => { setSuPass(e.target.value); setSignupError(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
+                    placeholder="Create a password"
+                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
+                  />
                 </div>
+              </div>
 
-                <div className="mb-4">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Confirm Password</label>
-                  <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                    <input
-                      type="password"
-                      value={suConfirm}
-                      onChange={(e) => { setSuConfirm(e.target.value); setSignupError(''); }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-                      placeholder="Re-enter password"
-                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
-                    />
-                  </div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Confirm Password</label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                  <input
+                    type="password"
+                    value={suConfirm}
+                    onChange={(e) => { setSuConfirm(e.target.value); setSignupError(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
+                    placeholder="Re-enter password"
+                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
+                  />
                 </div>
+              </div>
 
-                              {signupError && (
+              {signupError && (
                 <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-400">
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                   {signupError}
@@ -738,6 +736,7 @@ function App() {
               </button>
             </div>
           )}
+            
             
                 
           {/* A-Ads Banner */}
