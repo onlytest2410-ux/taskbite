@@ -233,7 +233,6 @@ function App() {
     setLoginUser('');
     setLoginPass('');
     setLoginError('');
-    setCaptchaAnswer('');
   };
 
   const handleSignUp = () => {
