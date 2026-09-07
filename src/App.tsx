@@ -648,11 +648,16 @@ function App() {
                     {signupError}
                   </div>
                 )}
-
-                <button
-                  onClick={handleSignUp}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#46c75f] active:scale-[0.98]"
-                >
+<button
+  onClick={handleSignup}
+  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#2ea043]"
+>
+  <User className="h-4 w-4" />
+  Create Account
+</button>
+  </div>
+)}
+            
 
 {/* Google reCAPTCHA */}
 <div className="mb-4 flex justify-center">
