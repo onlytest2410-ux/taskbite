@@ -168,8 +168,7 @@ function App() {
         localStorage.removeItem('currentUser');
       }
     }
-    regenerateCaptcha();
-  }, [regenerateCaptcha]);
+  }, []);
 
   // Resume countdown if page reloads mid-cooldown (12-hour cooldown)
   useEffect(() => {
@@ -215,12 +214,10 @@ function App() {
     const user = users[loginUser.trim()];
     if (!user) {
       setLoginError('Username not found. Please sign up first.');
-      regenerateCaptcha();
       return;
     }
     if (user.password !== loginPass.trim()) {
       setLoginError('Incorrect password. Please try again.');
-      regenerateCaptcha();
       return;
     }
 
@@ -238,22 +235,18 @@ function App() {
   const handleSignUp = () => {
     if (suUsername.trim().length < 3) {
       setSignupError('Username must be at least 3 characters');
-      regenerateCaptcha();
       return;
     }
     if (!isValidEmail(suEmail.trim())) {
       setSignupError('Please enter a valid email address');
-      regenerateCaptcha();
       return;
     }
     if (suPass.length < 6) {
       setSignupError('Password must be at least 6 characters');
-      regenerateCaptcha();
       return;
     }
     if (suPass !== suConfirm) {
       setSignupError('Passwords do not match');
-      regenerateCaptcha();
       return;
     }
     
