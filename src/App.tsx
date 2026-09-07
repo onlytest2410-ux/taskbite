@@ -1192,15 +1192,19 @@ function App() {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translate(-50%, 20px); }
-          to { opacity: 1; transform: translate(-50%, 0); }
-        }
-      `}</style>
+            <style>{`
+          @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+          }
+          .animate-slideUp {
+            animation: slideUp 0.3s ease-out forwards;
+          }
+        `}</style>
+      )}
     </div>
   );
 }
 
 export default App;
+        
