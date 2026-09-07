@@ -55,34 +55,31 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.su
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const withdrawalMethods = [
-  {
-    id: 'faucetpay',
-    name: 'FaucetPay',
+const WITHDRAW_RULES: Record<string, any> = {
+  faucetpay: {
+    min: 0.50,
     currency: 'USDT',
+    icon: Zap,
+    label: 'FaucetPay Email / Address',
     placeholder: 'Enter your FaucetPay Email or Deposit Address',
-    feeText: 'Zero-fee transfer. Minimum: $0.50 USDT'
+    note: 'Zero-fee transfer. Minimum: $0.50 USDT'
   },
-  {
-    id: 'binance',
-    name: 'Binance Pay',
+  binance: {
+    min: 3.00,
     currency: 'USDT',
+    icon: Bitcoin,
+    label: 'Binance Pay ID / Email',
     placeholder: 'Enter your Binance Pay ID or Email',
-    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
+    note: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
   },
-  {
-    id: 'direct',
-    name: 'Direct Wallet',
+  direct: {
+    min: 5.00,
     currency: 'USDT',
+    icon: Wallet,
+    label: 'USDT (BEP-20) Wallet Address',
     placeholder: 'Enter your USDT (BEP-20) Wallet Address',
-    feeText: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
+    note: 'Fee: $1.00 USDT. Minimum: $5.00 USDT'
   }
-];
-
-const WITHDRAW_RULES: Record<string, { min: number; currency: string }> = {
-  faucetpay: { min: 0.50, currency: 'USDT' },
-  binance: { min: 3.00, currency: 'USDT' },
-  direct: { min: 5.00, currency: 'USDT' }
 };
 
 
