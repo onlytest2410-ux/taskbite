@@ -527,6 +527,11 @@ function App() {
               </button>
             </div>
 
+            {/* Google reCAPTCHA */}
+<div className="mb-4 flex justify-center">
+  <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+</div>
+            
             {/* Sign In Form */}
             {authMode === 'signin' && (
               <>
@@ -576,12 +581,6 @@ function App() {
                 </button>
               </>
             )}
-
-{/* Google reCAPTCHA */}
-<div className="mb-4 flex justify-center">
-  <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
-</div>
-            
             
             {/* Sign Up Form */}
             {authMode === 'signup' && (
