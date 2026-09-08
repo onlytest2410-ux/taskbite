@@ -243,60 +243,6 @@ function App() {
   }, [loadProfile, loadTransactions]);
   
 
-    // 1. Initial Session Check
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
-      if (session?.user) {
-        setAuthUser(session.user);
-        try {
-          await Promise.allSettled([
-            loadProfile(session.user),
-            loadTransactions(session.user.id),
-          ]);
-        } finally {
-          if (mounted) setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
-
-    // 2. Auth State Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      if (event === 'SIGNED_OUT' || !session?.user) {
-        setAuthUser(null);
-        setProfile(null);
-        setBalance(0);
-        setLastClaimTime(null);
-        setTransactions([]);
-        setCountdown(0);
-        setActivePage('dashboard');
-        setLoading(false);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setAuthUser(session.user);
-        try {
-          await Promise.allSettled([
-            loadProfile(session.user),
-            loadTransactions(session.user.id),
-          ]);
-        } finally {
-          if (mounted) setLoading(false);
-        }
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [loadProfile, loadTransactions]);
-  
-  
-
   // ---- reCAPTCHA rendering ----
   useEffect(() => {
     if (authUser) return;
