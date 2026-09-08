@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import {
   Wallet,
   Gift,
@@ -23,10 +24,11 @@ import {
   Bitcoin,
 } from 'lucide-react';
 
-type WithdrawMethod = 'direct' | 'faucetpay' | 'binance';
+type WithdrawMethod = 'faucetpay' | 'binance' | 'direct';
 type AuthMode = 'signin' | 'signup';
 
 interface Transaction {
+  id: string;
   type: 'claim' | 'withdrawal';
   amount: number;
   time: string;
@@ -34,14 +36,13 @@ interface Transaction {
   destination?: string;
 }
 
-interface StoredUser {
+interface Profile {
+  id: string;
   username: string;
   email: string;
-  password: string;
   balance: number;
-  referralCode: string;
-  lastClaimTime: number | null;
-  transactions: Transaction[];
+  referral_code: string;
+  last_claim_time: string | null;
 }
 
 const FAUCET_REWARD = 0.001;
@@ -50,37 +51,37 @@ const AD_VIEW_DURATION = 30;
 const AD_URL = 'https://www.profitableratecpmnetwork.com/ag1v3m83?key=8adb519f3b317f350d8485bb76c3a4c2';
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xjyveyja';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const RECAPTCHA_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
 
-const WITHDRAW_RULES: Record<string, any> = {
+const WITHDRAW_RULES: Record<WithdrawMethod, { min: number; fee: number; currency: string; label: string; placeholder: string; note: string; icon: typeof Wallet }> = {
   faucetpay: {
     min: 0.50,
+    fee: 0,
     currency: 'USDT',
-    icon: Zap,
-    label: 'FaucetPay Email / Address',
+    label: 'FaucetPay Email or Deposit Address',
     placeholder: 'Enter your FaucetPay Email or Deposit Address',
-    note: 'Zero-fee transfer. Minimum: $0.50 USDT'
+    note: 'Zero-fee transfer. Minimum: $0.50 USDT',
+    icon: Wallet,
   },
   binance: {
     min: 3.00,
+    fee: 0.10,
     currency: 'USDT',
+    label: 'Binance Pay ID or Binance Email',
+    placeholder: 'Enter your Binance Pay ID or Binance Email',
+    note: 'Fee: $0.10 USDT. Minimum: $3.00 USDT',
     icon: Bitcoin,
-    label: 'Binance Pay ID / Email',
-    placeholder: 'Enter your Binance Pay ID or Email',
-    note: 'Fee: $0.10 USDT. Minimum: $3.00 USDT'
   },
   direct: {
-    min: 5.00,
+    min: 3.00,
+    fee: 0.10,
     currency: 'USDT',
-    icon: Wallet,
     label: 'USDT (BEP-20) Wallet Address',
     placeholder: 'Enter your USDT (BEP-20) Wallet Address',
-    note: 'Fee: $1.00 USDT. Minimum: $5.00 USDT'
-  }
+    note: 'Fee: $0.10 USDT. Minimum: $3.00 USDT',
+    icon: Wallet,
+  },
 };
-
 
 const formatHHMMSS = (totalSeconds: number): string => {
   const h = Math.floor(totalSeconds / 3600);
@@ -89,36 +90,17 @@ const formatHHMMSS = (totalSeconds: number): string => {
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 };
 
-const getUsers = (): Record<string, StoredUser> => {
-  try {
-    const stored = localStorage.getItem('taskbite_users');
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-};
-
-const saveUsers = (users: Record<string, StoredUser>) => {
-  localStorage.setItem('taskbite_users', JSON.stringify(users));
-};
-
-const generateReferralCode = (username: string): string => {
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `TB-${username.toUpperCase().slice(0, 4)}-${random}`;
-};
-
 const isValidEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-
-
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Auth state
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
-  const [loginUser, setLoginUser] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -128,6 +110,7 @@ function App() {
   const [suPass, setSuPass] = useState('');
   const [suConfirm, setSuConfirm] = useState('');
   const [signupError, setSignupError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
 
   // Dashboard state
   const [balance, setBalance] = useState(0);
@@ -147,25 +130,122 @@ function App() {
   const [activePage, setActivePage] = useState<'dashboard' | 'earn'>('dashboard');
   const [iframeLoaded, setIframeLoaded] = useState(false);
 
-  // On mount, restore session
-  useEffect(() => {
-    const sessionUser = localStorage.getItem('currentUser');
-    if (sessionUser) {
-      const users = getUsers();
-      if (users[sessionUser]) {
-        const u = users[sessionUser];
-        setCurrentUser(u);
-        setBalance(u.balance);
-        setLastClaimTime(u.lastClaimTime);
-        setTransactions(u.transactions || []);
-        setIsLoggedIn(true);
-      } else {
-        localStorage.removeItem('currentUser');
+  // ---- Session & profile loading ----
+  const loadProfile = useCallback(async (user: User) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, email, balance, referral_code, last_claim_time')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      // Profile might not be created yet (trigger race). Retry once.
+      if (!data) {
+        await new Promise((r) => setTimeout(r, 500));
+        const retry = await supabase
+          .from('profiles')
+          .select('id, username, email, balance, referral_code, last_claim_time')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (retry.data) {
+          setProfile(retry.data as Profile);
+          setBalance(Number(retry.data.balance));
+          setLastClaimTime(retry.data.last_claim_time ? new Date(retry.data.last_claim_time).getTime() : null);
+          return;
+        }
       }
+      return;
     }
+
+    setProfile(data as Profile);
+    setBalance(Number(data.balance));
+    setLastClaimTime(data.last_claim_time ? new Date(data.last_claim_time).getTime() : null);
   }, []);
 
-  // Resume countdown if page reloads mid-cooldown (12-hour cooldown)
+  const loadTransactions = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, type, amount, method, destination, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !data) return;
+
+    const mapped: Transaction[] = data.map((t: any) => ({
+      id: t.id,
+      type: t.type,
+      amount: Number(t.amount),
+      time: t.created_at,
+      method: t.method,
+      destination: t.destination,
+    }));
+    setTransactions(mapped);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setAuthUser(session.user);
+        Promise.all([
+          loadProfile(session.user),
+          loadTransactions(session.user.id),
+        ]).finally(() => mounted && setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      (async () => {
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          setAuthUser(null);
+          setProfile(null);
+          setBalance(0);
+          setLastClaimTime(null);
+          setTransactions([]);
+          setCountdown(0);
+          setActivePage('dashboard');
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setAuthUser(session.user);
+          await loadProfile(session.user);
+          await loadTransactions(session.user.id);
+        }
+      })();
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [loadProfile, loadTransactions]);
+
+  // ---- reCAPTCHA rendering ----
+  useEffect(() => {
+    if (authUser) return;
+    const renderCaptcha = () => {
+      const grecaptcha = (window as any).grecaptcha;
+      if (!grecaptcha) return;
+      const container = document.querySelector('.g-recaptcha');
+      if (!container || container.children.length > 0) return;
+      grecaptcha.render(container, { sitekey: RECAPTCHA_SITE_KEY });
+    };
+    renderCaptcha();
+    if (!(window as any).grecaptcha) {
+      const interval = setInterval(() => {
+        if ((window as any).grecaptcha) {
+          renderCaptcha();
+          clearInterval(interval);
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, [authMode, authUser]);
+
+  // ---- Countdown ----
   useEffect(() => {
     if (lastClaimTime !== null) {
       const elapsed = Math.floor((Date.now() - lastClaimTime) / 1000);
@@ -189,61 +269,54 @@ function App() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const persistUser = (user: StoredUser) => {
-    const users = getUsers();
-    users[user.username] = user;
-    saveUsers(users);
-  };
-
-  const handleSignIn = () => {
-    if (!loginUser.trim()) {
-      setLoginError('Please enter your username');
+  // ---- Auth handlers ----
+  const handleSignIn = async () => {
+    if (!loginEmail.trim()) {
+      setLoginError('Please enter your email');
       return;
     }
-      const recaptchaResponse = (window as any).grecaptcha?.getResponse();
-  if (!recaptchaResponse) {
-    setLoginError('Please verify that you are not a robot.');
-    return;
-  }
-    
+    if (!isValidEmail(loginEmail.trim())) {
+      setLoginError('Please enter a valid email address');
+      return;
+    }
     if (!loginPass.trim()) {
       setLoginError('Please enter your password');
       return;
     }
-    
-    const users = getUsers();
-    const user = users[loginUser.trim()];
-    if (!user) {
-      setLoginError('Username not found. Please sign up first.');
-      return;
-    }
-    if (user.password !== loginPass.trim()) {
-      setLoginError('Incorrect password. Please try again.');
+    const recaptchaToken = (window as any).grecaptcha?.getResponse();
+    if (!recaptchaToken) {
+      setLoginError('Please complete the reCAPTCHA verification.');
       return;
     }
 
-    localStorage.setItem('currentUser', user.username);
-    setCurrentUser(user);
-    setBalance(user.balance);
-    setLastClaimTime(user.lastClaimTime);
-    setTransactions(user.transactions || []);
-    setIsLoggedIn(true);
-    setLoginUser('');
-    setLoginPass('');
+    setAuthBusy(true);
     setLoginError('');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim(),
+        password: loginPass,
+      });
+      if (error) {
+        setLoginError(error.message || 'Sign in failed. Check your credentials.');
+        (window as any).grecaptcha?.reset();
+      } else {
+        setLoginEmail('');
+        setLoginPass('');
+        (window as any).grecaptcha?.reset();
+      }
+    } catch {
+      setLoginError('Network error. Please try again.');
+      (window as any).grecaptcha?.reset();
+    } finally {
+      setAuthBusy(false);
+    }
   };
-  const handleSignup = () => {
-  const recaptchaResponse = (window as any).grecaptcha?.getResponse();
-  if (!recaptchaResponse) {
-    setSignupError('Please verify that you are not a robot.');
-    return;
-  }
 
-  if (suUsername.trim().length < 3) {
-    setSignupError('Username must be at least 3 characters');
-    return;
-  }
-    
+  const handleSignUp = async () => {
+    if (suUsername.trim().length < 3) {
+      setSignupError('Username must be at least 3 characters');
+      return;
+    }
     if (!isValidEmail(suEmail.trim())) {
       setSignupError('Please enter a valid email address');
       return;
@@ -256,59 +329,57 @@ function App() {
       setSignupError('Passwords do not match');
       return;
     }
-    
-    const users = getUsers();
-    const uname = suUsername.trim();
-    if (users[uname]) {
-      setSignupError('Username already exists. Please choose another.');
-      return;
-    }
-    const existingEmail = Object.values(users).find((u) => u.email === suEmail.trim());
-    if (existingEmail) {
-      setSignupError('Email already registered. Please sign in instead.')
+    const recaptchaToken = (window as any).grecaptcha?.getResponse();
+    if (!recaptchaToken) {
+      setSignupError('Please complete the reCAPTCHA verification.');
       return;
     }
 
-    const newUser: StoredUser = {
-      username: uname,
-      email: suEmail.trim(),
-      password: suPass,
-      balance: 0.0,
-      referralCode: generateReferralCode(uname),
-      lastClaimTime: null,
-      transactions: [],
-    };
-
-    users[uname] = newUser;
-    saveUsers(users);
-    localStorage.setItem('currentUser', uname);
-    setCurrentUser(newUser);
-    setBalance(0);
-    setLastClaimTime(null);
-    setTransactions([]);
-    setIsLoggedIn(true);
-    setSuUsername('');
-    setSuEmail('');
-    setSuPass('');
-    setSuConfirm('');
+    setAuthBusy(true);
     setSignupError('');
-    setCaptchaAnswer('');
-    showToast('Account created successfully!', 'success');
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: suEmail.trim(),
+        password: suPass,
+        options: { data: { username: suUsername.trim() } },
+      });
+      if (error) {
+        setSignupError(error.message || 'Sign up failed.');
+        (window as any).grecaptcha?.reset();
+      } else if (data.user) {
+        setSuUsername('');
+        setSuEmail('');
+        setSuPass('');
+        setSuConfirm('');
+        (window as any).grecaptcha?.reset();
+        showToast('Account created successfully!', 'success');
+      }
+    } catch {
+      setSignupError('Network error. Please try again.');
+      (window as any).grecaptcha?.reset();
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const switchAuthMode = (mode: AuthMode) => {
     setAuthMode(mode);
     setLoginError('');
     setSignupError('');
-    setLoginUser('');
+    setLoginEmail('');
     setLoginPass('');
     setSuUsername('');
     setSuEmail('');
     setSuPass('');
     setSuConfirm('');
+    (window as any).grecaptcha?.reset();
   };
 
-  // Ad modal countdown timer
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  // ---- Ad modal countdown ----
   useEffect(() => {
     if (!isAdModalOpen || adCountdown <= 0) return;
     const timer = setInterval(() => {
@@ -317,46 +388,58 @@ function App() {
     return () => clearInterval(timer);
   }, [isAdModalOpen, adCountdown]);
 
+  // ---- Faucet claim ----
   const handleClaim = () => {
-    if (countdown > 0 || !currentUser) return;
+    if (countdown > 0 || !authUser) return;
     setAdCountdown(AD_VIEW_DURATION);
     setIsAdModalOpen(true);
   };
 
-  const completeAdClaim = () => {
-    if (!currentUser) return;
+  const completeAdClaim = async () => {
+    if (!authUser || !profile) return;
     const newBalance = balance + FAUCET_REWARD;
+    const now = Date.now();
+
     setBalance(newBalance);
-    setLastClaimTime(Date.now());
+    setLastClaimTime(now);
     setCountdown(FAUCET_COOLDOWN);
 
     const tx: Transaction = {
+      id: crypto.randomUUID(),
       type: 'claim',
       amount: FAUCET_REWARD,
-      time: new Date().toISOString(),
+      time: new Date(now).toISOString(),
     };
     const updatedTx = [tx, ...transactions].slice(0, 20);
     setTransactions(updatedTx);
 
-    const updatedUser: StoredUser = {
-      ...currentUser,
-      balance: newBalance,
-      lastClaimTime: Date.now(),
-      transactions: updatedTx,
-    };
-    persistUser(updatedUser);
-    setCurrentUser(updatedUser);
+    try {
+      await supabase
+        .from('profiles')
+        .update({ balance: newBalance, last_claim_time: new Date(now).toISOString() })
+        .eq('id', authUser.id);
+
+      await supabase.from('transactions').insert({
+        user_id: authUser.id,
+        type: 'claim',
+        amount: FAUCET_REWARD,
+      });
+    } catch {
+      // Balance already updated in UI; will sync on next profile load
+    }
+
     setIsAdModalOpen(false);
     showToast(`Claimed ${FAUCET_REWARD.toFixed(3)} USDT!`, 'success');
   };
 
+  // ---- Withdrawal ----
   const openModal = () => {
-  setAmount('');
-  setDestination('');
-  setMethod('faucetpay');
-  setIsModalOpen(true);
-};
-  
+    setAmount('');
+    setDestination('');
+    setMethod('faucetpay');
+    setIsModalOpen(true);
+  };
+
   const closeModal = () => {
     setIsModalOpen(false);
     setAmount('');
@@ -368,7 +451,7 @@ function App() {
   };
 
   const handleWithdraw = async () => {
-    if (!currentUser) return;
+    if (!authUser || !profile) return;
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount)) {
       showToast('Enter a valid amount', 'error');
@@ -388,10 +471,11 @@ function App() {
       return;
     }
 
-    const methodName = method === 'lightning' ? 'Lightning Network (BTC)' : method === 'faucetpay' ? 'FaucetPay (USDT)' : 'Binance Pay (USDT)';
+    const methodName = method === 'faucetpay' ? 'FaucetPay (USDT)' : method === 'binance' ? 'Binance Pay (USDT)' : 'Direct Wallet (USDT BEP-20)';
 
     setSubmitting(true);
     try {
+      // Send notification email via Formspree
       await fetch(FORMSPREE_ENDPOINT, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -399,25 +483,31 @@ function App() {
           method: methodName,
           destination: destination.trim(),
           requestedAmount: numAmount.toFixed(3) + ' ' + rules.currency,
-          fee: '0.000 ' + rules.currency,
-          netAmount: numAmount.toFixed(3) + ' ' + rules.currency,
+          fee: rules.fee.toFixed(3) + ' ' + rules.currency,
+          netAmount: (numAmount - rules.fee).toFixed(3) + ' ' + rules.currency,
           time: new Date().toISOString(),
         }),
       });
 
-      await supabase.from('withdrawal_requests').insert({
-        username: currentUser.username,
+      // Insert withdrawal request
+      const { error: wError } = await supabase.from('withdrawal_requests').insert({
+        user_id: authUser.id,
+        username: profile.username,
         method: method,
         currency: rules.currency,
         amount: numAmount,
         recipient: destination.trim(),
         status: 'pending',
       });
+      if (wError) throw wError;
 
+      // Deduct balance
       const newBalance = balance - numAmount;
       setBalance(newBalance);
 
+      // Record transaction
       const tx: Transaction = {
+        id: crypto.randomUUID(),
         type: 'withdrawal',
         amount: -numAmount,
         time: new Date().toISOString(),
@@ -427,13 +517,19 @@ function App() {
       const updatedTx = [tx, ...transactions].slice(0, 20);
       setTransactions(updatedTx);
 
-      const updatedUser: StoredUser = {
-        ...currentUser,
-        balance: newBalance,
-        transactions: updatedTx,
-      };
-      persistUser(updatedUser);
-      setCurrentUser(updatedUser);
+      await supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('id', authUser.id);
+
+      await supabase.from('transactions').insert({
+        user_id: authUser.id,
+        type: 'withdrawal',
+        amount: -numAmount,
+        method: methodName,
+        destination: destination.trim(),
+      });
+
       showToast('Withdrawal request submitted!', 'success');
       closeModal();
     } catch {
@@ -444,33 +540,34 @@ function App() {
   };
 
   const copyReferral = () => {
-    if (!currentUser) return;
-    const link = `https://taskbite.app/?ref=${currentUser.referralCode}`;
+    if (!profile) return;
+    const link = `https://taskbite.app/?ref=${profile.referral_code}`;
     navigator.clipboard?.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setBalance(0);
-    setLastClaimTime(null);
-    setTransactions([]);
-    setCountdown(0);
-    setAuthMode('signin');
-    setActivePage('dashboard');
-    regenerateCaptcha();
-  };
-
+  // ---- Derived values ----
   const claimReady = countdown === 0;
   const formattedBalance = balance.toFixed(3);
-  const referralLink = currentUser
-    ? `https://taskbite.app/?ref=${currentUser.referralCode}`
+  const referralLink = profile
+    ? `https://taskbite.app/?ref=${profile.referral_code}`
     : 'https://taskbite.app/?ref=YOUR_CODE';
 
-  if (!isLoggedIn) {
+  // ---- Loading screen ----
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0d1117] text-gray-200">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#30363d] border-t-[#58a6ff]" />
+          <p className="text-sm text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Auth screen ----
+  if (!authUser) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0d1117] px-4 text-gray-200">
         {/* Background gradient accents */}
@@ -521,146 +618,170 @@ function App() {
                 Sign Up
               </button>
             </div>
-            
-                      {/* Sign In Form */}
-          {authMode === 'signin' && (
-            <div className="mb-4">
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Username</label>
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="text"
-                    value={loginUser}
-                    onChange={(e) => { setLoginUser(e.target.value); setLoginError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignin()}
-                    placeholder="Enter username"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
+
+            {/* Sign In Form */}
+            {authMode === 'signin' && (
+              <>
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => { setLoginEmail(e.target.value); setLoginError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
+                      placeholder="you@example.com"
+                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Password</label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="password"
-                    value={loginPass}
-                    onChange={(e) => { setLoginPass(e.target.value); setLoginError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignin()}
-                    placeholder="Enter password"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Password</label>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      type="password"
+                      value={loginPass}
+                      onChange={(e) => { setLoginPass(e.target.value); setLoginError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
+                      placeholder="Enter password"
+                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {loginError && (
-                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-400">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  {loginError}
+                {/* reCAPTCHA */}
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Security Check</label>
+                  <div className="g-recaptcha" data-sitekey={RECAPTCHA_SITE_KEY}></div>
                 </div>
-              )}
 
-              <div className="mb-4 flex justify-center">
-                <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
-              </div>
+                {loginError && (
+                  <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    {loginError}
+                  </div>
+                )}
 
-              <button
-                onClick={handleSignin}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#58a6ff] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#79c0ff]"
-              >
-                <LogOut className="h-5 w-5 rotate-180" />
-                Sign In
-              </button>
-            </div>
-          )}
-
-          
-            
-                  {/* Sign Up Form */}
-          {authMode === 'signup' && (
-            <div>
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Username (min 3 characters)</label>
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="text"
-                    value={suUsername}
-                    onChange={(e) => { setSuUsername(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="Choose a username"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="email"
-                    value={suEmail}
-                    onChange={(e) => { setSuEmail(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="you@example.com"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Password (min 6 characters)</label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="password"
-                    value={suPass}
-                    onChange={(e) => { setSuPass(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="Create a password"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-medium text-gray-400">Confirm Password</label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
-                  <input
-                    type="password"
-                    value={suConfirm}
-                    onChange={(e) => { setSuConfirm(e.target.value); setSignupError(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                    placeholder="Re-enter password"
-                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 focus:border-[#58a6ff] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {signupError && (
-                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-400">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  {signupError}
-                </div>
-              )}
-
-              <div className="mb-4 flex justify-center">
-                <div className="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
-              </div>
-
-              <button
-                onClick={handleSignup}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#2ea043]"
-              >
-                <User className="h-4 w-4" />
-                Create Account
-              </button>
-            </div>
+                <button
+                  onClick={handleSignIn}
+                  disabled={authBusy}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#58a6ff] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#79b8ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {authBusy ? (
+                    <>
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#0d1117] border-t-transparent" />
+                      Signing in...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="h-5 w-5 rotate-180" />
+                      Sign In
+                    </>
+                  )}
+                </button>
+              </>
             )}
+
+            {/* Sign Up Form */}
+            {authMode === 'signup' && (
+              <>
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Username (min 3 characters)</label>
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      type="text"
+                      value={suUsername}
+                      onChange={(e) => { setSuUsername(e.target.value); setSignupError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+                      placeholder="Choose a username"
+                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      type="email"
+                      value={suEmail}
+                      onChange={(e) => { setSuEmail(e.target.value); setSignupError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+                      placeholder="you@example.com"
+                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Password (min 6 characters)</label>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      type="password"
+                      value={suPass}
+                      onChange={(e) => { setSuPass(e.target.value); setSignupError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+                      placeholder="Create a password"
+                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Confirm Password</label>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      type="password"
+                      value={suConfirm}
+                      onChange={(e) => { setSuConfirm(e.target.value); setSignupError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+                      placeholder="Re-enter password"
+                      className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                    />
+                  </div>
+                </div>
+
+                {/* reCAPTCHA */}
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">Security Check</label>
+                  <div className="g-recaptcha" data-sitekey={RECAPTCHA_SITE_KEY}></div>
+                </div>
+
+                {signupError && (
+                  <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    {signupError}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSignUp}
+                  disabled={authBusy}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3fb950] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#46c75f] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {authBusy ? (
+                    <>
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#0d1117] border-t-transparent" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <User className="h-5 w-5" />
+                      Create Account
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+
           {/* A-Ads Banner */}
           <div id="frame" style={{ width: '100%', margin: '20px auto', position: 'relative', zIndex: 10 }}>
             <iframe
@@ -676,6 +797,10 @@ function App() {
           </p>
         </div>
       </div>
+    );
+  }
+
+  // ---- Dashboard ----
   return (
     <div className="min-h-screen bg-[#0d1117] text-gray-200">
       {/* Background gradient accents */}
@@ -683,6 +808,7 @@ function App() {
         <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-[#58a6ff] opacity-[0.07] blur-[120px]" />
         <div className="absolute top-1/3 -right-40 h-96 w-96 rounded-full bg-[#3fb950] opacity-[0.05] blur-[120px]" />
       </div>
+
       {/* App Header */}
       <header className="sticky top-0 z-30 border-b border-[#30363d] bg-[#0d1117]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
@@ -712,9 +838,9 @@ function App() {
             </button>
             <div className="flex items-center gap-2 rounded-full border border-[#30363d] bg-[#161b22] py-1 pl-1 pr-3">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#58a6ff] to-[#1f6feb] text-xs font-bold text-white">
-                {(currentUser?.username || '?').charAt(0).toUpperCase()}
+                {(profile?.username || '?').charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm font-medium text-gray-300">{currentUser?.username}</span>
+              <span className="text-sm font-medium text-gray-300">{profile?.username}</span>
             </div>
             <button
               onClick={handleLogout}
@@ -754,7 +880,7 @@ function App() {
           </section>
 
           {/* Offerwall iframe or login gate */}
-          {currentUser ? (
+          {profile ? (
             <section className="overflow-hidden rounded-2xl border border-[#30363d] bg-[#161b22]">
               {!iframeLoaded && (
                 <div className="flex min-h-[800px] flex-col items-center justify-center gap-3">
@@ -763,8 +889,7 @@ function App() {
                 </div>
               )}
               <iframe
-                src={`https://bitcotasks.com/offerwall/2wkOo4xn4nmat99z8yz7jxfbbp/${encodeURIComponent(currentUser.username)}`}
-                
+                src={`https://bitcotasks.com/offerwall/2wkOo4xn4nmat99z8yz7jxfbbp/${encodeURIComponent(profile.username)}`}
                 onLoad={() => setIframeLoaded(true)}
                 className="w-full border-none rounded-2xl"
                 style={{ minHeight: '800px', opacity: iframeLoaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
@@ -925,9 +1050,9 @@ function App() {
               <h2 className="text-base font-semibold text-white">Transaction History</h2>
             </div>
             <div className="space-y-2">
-              {transactions.map((tx, i) => (
+              {transactions.map((tx) => (
                 <div
-                  key={i}
+                  key={tx.id}
                   className="flex items-center justify-between rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2.5"
                 >
                   <div className="flex items-center gap-2.5">
@@ -1072,50 +1197,49 @@ function App() {
               </button>
             </div>
 
-                    {/* Method Selector - 3 Options */}
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium text-gray-400">Withdrawal Method</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(Object.keys(WITHDRAW_RULES) as WithdrawMethod[]).map((m) => {
-              const rule = WITHDRAW_RULES[m];
-              const Icon = rule.icon;
-              return (
-                <button
-                  key={m}
-                  onClick={() => { setMethod(m); setAmount(''); }}
-                  className={`rounded-xl border py-3 px-1 text-center transition-all ${
-                    method === m
-                      ? 'border-[#58a6ff] bg-[#58a6ff]/10 text-white'
-                      : 'border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Icon className="mx-auto mb-1 h-4 w-4" />
-                  <span className="block text-[11px] font-semibold leading-tight">
-                    {m === 'faucetpay' ? 'FaucetPay' : m === 'binance' ? 'Binance Pay' : 'Direct Wallet'}
-                  </span>
-                  <span className="block text-[9px] text-gray-500 leading-tight">
-                    {rule.currency}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            {/* Method Selector - 3 Options */}
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-medium text-gray-400">Withdrawal Method</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(WITHDRAW_RULES) as WithdrawMethod[]).map((m) => {
+                  const rule = WITHDRAW_RULES[m];
+                  const Icon = rule.icon;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => { setMethod(m); setAmount(''); }}
+                      className={`rounded-xl border py-3 px-1 text-center transition-all ${
+                        method === m
+                          ? 'border-[#58a6ff] bg-[#58a6ff]/10 text-white'
+                          : 'border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="mx-auto mb-1 h-4 w-4" />
+                      <span className="block text-[11px] font-semibold leading-tight">
+                        {m === 'faucetpay' ? 'FaucetPay' : m === 'binance' ? 'Binance Pay' : 'Direct Wallet'}
+                      </span>
+                      <span className="block text-[9px] text-gray-500 leading-tight">
+                        {rule.currency}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-        {/* Destination Input */}
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium text-gray-400">
-            {WITHDRAW_RULES[method]?.label}
-          </label>
-          <input
-            type="text"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder={WITHDRAW_RULES[method]?.placeholder}
-            className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-3 text-sm text-white placeholder-gray-500 focus:border-[#58a6ff] focus:outline-none"
-          />
-        </div>
-            
+            {/* Destination Input */}
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                {WITHDRAW_RULES[method].label}
+              </label>
+              <input
+                type="text"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                placeholder={WITHDRAW_RULES[method].placeholder}
+                className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+              />
+            </div>
 
             {/* Amount Input */}
             <div className="mb-3">
@@ -1164,13 +1288,17 @@ function App() {
                   Request Withdrawal
                 </>
               )}
-                </button>
-    <div className="mt-3 p-2 bg-gray-800/60 rounded-lg text-center text-xs text-gray-400 border border-gray-700/50">
-      ⚠️ Note: For security and verification, withdrawals are processed within 7 business days.
-    </div>
-  </div>
-</div>
-      
+            </button>
+
+            {/* Security Notice */}
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-3 py-2.5">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-yellow-500" />
+              <p className="text-xs text-yellow-500/90">
+                Note: For security and verification, withdrawals are processed within 7 business days.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast */}
@@ -1192,19 +1320,15 @@ function App() {
           </div>
         </div>
       )}
-            <style>{`
-          @keyframes slideUp {
-            from { opacity: 0; transform: translate(-50%, 20px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
-          }
-          .animate-slideUp {
-            animation: slideUp 0.3s ease-out forwards;
-          }
-        `}</style>
-      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translate(-50%, 20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+      `}</style>
     </div>
   );
 }
 
 export default App;
-        
