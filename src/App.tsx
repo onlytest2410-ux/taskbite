@@ -183,8 +183,65 @@ function App() {
     setTransactions(mapped);
   }, []);
 
-    useEffect(() => {
+      useEffect(() => {
     let mounted = true;
+
+    // Safety timeout: dismiss spinner after 1.5s no matter what
+    const timer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 1500);
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setAuthUser(session.user);
+        try {
+          await Promise.allSettled([
+            loadProfile(session.user),
+            loadTransactions(session.user.id),
+          ]);
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      if (event === 'SIGNED_OUT' || !session?.user) {
+        setAuthUser(null);
+        setProfile(null);
+        setBalance(0);
+        setLastClaimTime(null);
+        setTransactions([]);
+        setCountdown(0);
+        setActivePage('dashboard');
+        setLoading(false);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setAuthUser(session.user);
+        try {
+          await Promise.allSettled([
+            loadProfile(session.user),
+            loadTransactions(session.user.id),
+          ]);
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
+  }, [loadProfile, loadTransactions]);
+  
 
     // 1. Initial Session Check
     supabase.auth.getSession().then(async ({ data: { session } }) => {
