@@ -807,8 +807,8 @@ function App() {
           {/* A-Ads Banner */}
           <div id="frame" style={{ width: '100%', margin: '20px auto', position: 'relative', zIndex: 10 }}>
             <iframe
-              data-aa="2454501"
-              src="https://acceptable.a-ads.com/2454501/?size=Adaptive"
+              data-aa="2454712"
+              src="https://acceptable.a-ads.com/2454712/?size=Adaptive"
               style={{ border: 0, padding: 0, width: '100%', height: '100px', overflow: 'hidden', display: 'block', margin: 'auto' }}
               title="A-Ads Banner"
             />
