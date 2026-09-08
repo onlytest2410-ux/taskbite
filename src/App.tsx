@@ -131,36 +131,36 @@ function App() {
   const [iframeLoaded, setIframeLoaded] = useState(false);
 
   // ---- Session & profile loading ----
-  const loadProfile = useCallback(async (user: User) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, username, email, balance, referral_code, last_claim_time')
-      .eq('id', user.id)
-      .maybeSingle();
+    const loadProfile = useCallback(async (user: User) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, email, balance, referral_code, last_claim_time')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (error || !data) {
-      // Profile might not be created yet (trigger race). Retry once.
-      if (!data) {
-        await new Promise((r) => setTimeout(r, 500));
-        const retry = await supabase
-          .from('profiles')
-          .select('id, username, email, balance, referral_code, last_claim_time')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (retry.data) {
-          setProfile(retry.data as Profile);
-          setBalance(Number(retry.data.balance));
-          setLastClaimTime(retry.data.last_claim_time ? new Date(retry.data.last_claim_time).getTime() : null);
-          return;
-        }
+      if (error || !data) {
+        setProfile({
+          id: user.id,
+          username: user.email?.split('@')[0] || 'User',
+          email: user.email || '',
+          balance: 0,
+          referral_code: '',
+          last_claim_time: null,
+        });
+        setBalance(0);
+        setLastClaimTime(null);
+        return;
       }
-      return;
-    }
 
-    setProfile(data as Profile);
-    setBalance(Number(data.balance));
-    setLastClaimTime(data.last_claim_time ? new Date(data.last_claim_time).getTime() : null);
+      setProfile(data as Profile);
+      setBalance(Number(data.balance || 0));
+      setLastClaimTime(data.last_claim_time ? new Date(data.last_claim_time).getTime() : null);
+    } catch (err) {
+      console.error('Error loading profile:', err);
+    }
   }, []);
+          
 
   const loadTransactions = useCallback(async (userId: string) => {
     const { data, error } = await supabase
