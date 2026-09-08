@@ -186,21 +186,30 @@ function App() {
     useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // 1. Initial Session Check
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
       if (session?.user) {
         setAuthUser(session.user);
-        Promise.all([
-          loadProfile(session.user),
-          loadTransactions(session.user.id),
-        ]).finally(() => mounted && setLoading(false));
+        try {
+          await Promise.allSettled([
+            loadProfile(session.user),
+            loadTransactions(session.user.id),
+          ]);
+        } finally {
+          if (mounted) setLoading(false);
+        }
       } else {
         setLoading(false);
       }
+    }).catch(() => {
+      if (mounted) setLoading(false);
     });
 
+    // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+
       if (event === 'SIGNED_OUT' || !session?.user) {
         setAuthUser(null);
         setProfile(null);
@@ -212,9 +221,14 @@ function App() {
         setLoading(false);
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setAuthUser(session.user);
-        await loadProfile(session.user);
-        await loadTransactions(session.user.id);
-        setLoading(false);
+        try {
+          await Promise.allSettled([
+            loadProfile(session.user),
+            loadTransactions(session.user.id),
+          ]);
+        } finally {
+          if (mounted) setLoading(false);
+        }
       }
     });
 
@@ -223,6 +237,7 @@ function App() {
       subscription.unsubscribe();
     };
   }, [loadProfile, loadTransactions]);
+  
   
 
   // ---- reCAPTCHA rendering ----
