@@ -139,21 +139,18 @@ function App() {
       .maybeSingle();
 
     if (error || !data) {
-      // Profile might not be created yet (trigger race). Retry once.
-      if (!data) {
-        await new Promise((r) => setTimeout(r, 500));
-        const retry = await supabase
-          .from('profiles')
-          .select('id, username, email, balance, referral_code, last_claim_time')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (retry.data) {
-          setProfile(retry.data as Profile);
-          setBalance(Number(retry.data.balance));
-          setLastClaimTime(retry.data.last_claim_time ? new Date(retry.data.last_claim_time).getTime() : null);
-          return;
-        }
-      }
+      const fallbackUsername = user.email ? user.email.split('@')[0] : 'user';
+      const fallback: Profile = {
+        id: user.id,
+        username: fallbackUsername,
+        email: user.email || '',
+        balance: 0,
+        referral_code: `TB-${fallbackUsername.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+        last_claim_time: null,
+      };
+      setProfile(fallback);
+      setBalance(0);
+      setLastClaimTime(null);
       return;
     }
 
@@ -185,41 +182,53 @@ function App() {
 
   useEffect(() => {
     let mounted = true;
+    const safetyTimeout = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 1500);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       if (session?.user) {
         setAuthUser(session.user);
-        Promise.all([
+        Promise.allSettled([
           loadProfile(session.user),
           loadTransactions(session.user.id),
-        ]).finally(() => mounted && setLoading(false));
+        ]).finally(() => {
+          if (mounted) setLoading(false);
+        });
       } else {
         setLoading(false);
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       (async () => {
-        if (event === 'SIGNED_OUT' || !session?.user) {
-          setAuthUser(null);
-          setProfile(null);
-          setBalance(0);
-          setLastClaimTime(null);
-          setTransactions([]);
-          setCountdown(0);
-          setActivePage('dashboard');
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setAuthUser(session.user);
-          await loadProfile(session.user);
-          await loadTransactions(session.user.id);
+        try {
+          if (event === 'SIGNED_OUT' || !session?.user) {
+            setAuthUser(null);
+            setProfile(null);
+            setBalance(0);
+            setLastClaimTime(null);
+            setTransactions([]);
+            setCountdown(0);
+            setActivePage('dashboard');
+          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            setAuthUser(session.user);
+            await Promise.allSettled([
+              loadProfile(session.user),
+              loadTransactions(session.user.id),
+            ]);
+          }
+        } finally {
+          if (mounted) setLoading(false);
         }
       })();
     });
 
     return () => {
       mounted = false;
-      listener.subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
     };
   }, [loadProfile, loadTransactions]);
 
@@ -413,19 +422,29 @@ function App() {
     const updatedTx = [tx, ...transactions].slice(0, 20);
     setTransactions(updatedTx);
 
-    try {
-      await supabase
-        .from('profiles')
-        .update({ balance: newBalance, last_claim_time: new Date(now).toISOString() })
-        .eq('id', authUser.id);
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ balance: newBalance, last_claim_time: new Date(now).toISOString() })
+      .eq('id', authUser.id);
 
-      await supabase.from('transactions').insert({
-        user_id: authUser.id,
-        type: 'claim',
-        amount: FAUCET_REWARD,
-      });
-    } catch {
-      // Balance already updated in UI; will sync on next profile load
+    if (updateError) {
+      setBalance(balance);
+      setLastClaimTime(lastClaimTime);
+      setCountdown(0);
+      setTransactions(transactions);
+      setIsAdModalOpen(false);
+      showToast('Failed to record claim. Please try again.', 'error');
+      return;
+    }
+
+    const { error: txError } = await supabase.from('transactions').insert({
+      user_id: authUser.id,
+      type: 'claim',
+      amount: FAUCET_REWARD,
+    });
+
+    if (txError) {
+      showToast('Claim recorded but transaction log failed.', 'error');
     }
 
     setIsAdModalOpen(false);
@@ -503,6 +522,13 @@ function App() {
 
       // Deduct balance
       const newBalance = balance - numAmount;
+
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('id', authUser.id);
+      if (balanceError) throw balanceError;
+
       setBalance(newBalance);
 
       // Record transaction
@@ -517,18 +543,14 @@ function App() {
       const updatedTx = [tx, ...transactions].slice(0, 20);
       setTransactions(updatedTx);
 
-      await supabase
-        .from('profiles')
-        .update({ balance: newBalance })
-        .eq('id', authUser.id);
-
-      await supabase.from('transactions').insert({
+      const { error: txError } = await supabase.from('transactions').insert({
         user_id: authUser.id,
         type: 'withdrawal',
         amount: -numAmount,
         method: methodName,
         destination: destination.trim(),
       });
+      if (txError) throw txError;
 
       showToast('Withdrawal request submitted!', 'success');
       closeModal();
