@@ -131,36 +131,36 @@ function App() {
   const [iframeLoaded, setIframeLoaded] = useState(false);
 
   // ---- Session & profile loading ----
-    const loadProfile = useCallback(async (user: User) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, email, balance, referral_code, last_claim_time')
-        .eq('id', user.id)
-        .maybeSingle();
+  const loadProfile = useCallback(async (user: User) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, email, balance, referral_code, last_claim_time')
+      .eq('id', user.id)
+      .maybeSingle();
 
-      if (error || !data) {
-        setProfile({
-          id: user.id,
-          username: user.email?.split('@')[0] || 'User',
-          email: user.email || '',
-          balance: 0,
-          referral_code: '',
-          last_claim_time: null,
-        });
-        setBalance(0);
-        setLastClaimTime(null);
-        return;
+    if (error || !data) {
+      // Profile might not be created yet (trigger race). Retry once.
+      if (!data) {
+        await new Promise((r) => setTimeout(r, 500));
+        const retry = await supabase
+          .from('profiles')
+          .select('id, username, email, balance, referral_code, last_claim_time')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (retry.data) {
+          setProfile(retry.data as Profile);
+          setBalance(Number(retry.data.balance));
+          setLastClaimTime(retry.data.last_claim_time ? new Date(retry.data.last_claim_time).getTime() : null);
+          return;
+        }
       }
-
-      setProfile(data as Profile);
-      setBalance(Number(data.balance || 0));
-      setLastClaimTime(data.last_claim_time ? new Date(data.last_claim_time).getTime() : null);
-    } catch (err) {
-      console.error('Error loading profile:', err);
+      return;
     }
+
+    setProfile(data as Profile);
+    setBalance(Number(data.balance));
+    setLastClaimTime(data.last_claim_time ? new Date(data.last_claim_time).getTime() : null);
   }, []);
-          
 
   const loadTransactions = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -183,65 +183,45 @@ function App() {
     setTransactions(mapped);
   }, []);
 
-      useEffect(() => {
+  useEffect(() => {
     let mounted = true;
 
-    // Safety timeout: dismiss spinner after 1.5s no matter what
-    const timer = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 1500);
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       if (session?.user) {
         setAuthUser(session.user);
-        try {
-          await Promise.allSettled([
-            loadProfile(session.user),
-            loadTransactions(session.user.id),
-          ]);
-        } finally {
-          if (mounted) setLoading(false);
-        }
+        Promise.all([
+          loadProfile(session.user),
+          loadTransactions(session.user.id),
+        ]).finally(() => mounted && setLoading(false));
       } else {
         setLoading(false);
       }
-    }).catch(() => {
-      if (mounted) setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      if (event === 'SIGNED_OUT' || !session?.user) {
-        setAuthUser(null);
-        setProfile(null);
-        setBalance(0);
-        setLastClaimTime(null);
-        setTransactions([]);
-        setCountdown(0);
-        setActivePage('dashboard');
-        setLoading(false);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setAuthUser(session.user);
-        try {
-          await Promise.allSettled([
-            loadProfile(session.user),
-            loadTransactions(session.user.id),
-          ]);
-        } finally {
-          if (mounted) setLoading(false);
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      (async () => {
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          setAuthUser(null);
+          setProfile(null);
+          setBalance(0);
+          setLastClaimTime(null);
+          setTransactions([]);
+          setCountdown(0);
+          setActivePage('dashboard');
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setAuthUser(session.user);
+          await loadProfile(session.user);
+          await loadTransactions(session.user.id);
         }
-      }
+      })();
     });
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
-      subscription.unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, [loadProfile, loadTransactions]);
-  
 
   // ---- reCAPTCHA rendering ----
   useEffect(() => {
