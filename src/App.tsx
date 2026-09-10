@@ -45,7 +45,7 @@ interface Profile {
   last_claim_time: string | null;
 }
 
-const FAUCET_REWARD = 1;
+const FAUCET_REWARD = 0.001;
 const FAUCET_COOLDOWN = 43200; // 12 hours in seconds
 const AD_VIEW_DURATION = 30;
 const AD_URL = "https://www.profitablecpmnetwork.com/x4ix899840?key=e29158b32c2e0b116f3283654a2335e";
