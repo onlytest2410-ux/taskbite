@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -43,13 +43,16 @@ interface Profile {
   balance: number;
   referral_code: string;
   last_claim_time: string | null;
+  gender?: string | null;
+  country?: string | null;
 }
 
 const FAUCET_REWARD = 0.001;
 const FAUCET_COOLDOWN = 43200; // 12 hours in seconds
 const AD_VIEW_DURATION = 30;
-const AD_URL = "https://www.profitablecpmnetwork.com/x4ix899840?key=e29158b32c2e0b116f3283654a2335e";
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xjyveyja';
+const AD_URL = 'https://www.profitableratecpmnetwork.com/ag1v3m83?key=8adb519f3b317f350d8485bb76c3a4c2';
+const TELEGRAM_BOT_TOKEN = '8933631004:AAH-bsAzhN4cJsQzENG0cHbHUWjr3djoWYw';
+const TELEGRAM_CHAT_ID = '5930650507';
 
 const RECAPTCHA_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
 
@@ -130,11 +133,18 @@ function App() {
   const [activePage, setActivePage] = useState<'dashboard' | 'earn'>('dashboard');
   const [iframeLoaded, setIframeLoaded] = useState(false);
 
+  // Profile modal state
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [editGender, setEditGender] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
   // ---- Session & profile loading ----
   const loadProfile = useCallback(async (user: User) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, email, balance, referral_code, last_claim_time')
+      .select('id, username, email, balance, referral_code, last_claim_time, gender, country')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -180,6 +190,11 @@ function App() {
     setTransactions(mapped);
   }, []);
 
+  const loadProfileRef = useRef(loadProfile);
+  const loadTransactionsRef = useRef(loadTransactions);
+  loadProfileRef.current = loadProfile;
+  loadTransactionsRef.current = loadTransactions;
+
   useEffect(() => {
     let mounted = true;
     const safetyTimeout = setTimeout(() => {
@@ -191,8 +206,8 @@ function App() {
       if (session?.user) {
         setAuthUser(session.user);
         Promise.allSettled([
-          loadProfile(session.user),
-          loadTransactions(session.user.id),
+          loadProfileRef.current(session.user),
+          loadTransactionsRef.current(session.user.id),
         ]).finally(() => {
           if (mounted) setLoading(false);
         });
@@ -212,12 +227,14 @@ function App() {
             setTransactions([]);
             setCountdown(0);
             setActivePage('dashboard');
-          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          } else if (event === 'SIGNED_IN') {
             setAuthUser(session.user);
             await Promise.allSettled([
-              loadProfile(session.user),
-              loadTransactions(session.user.id),
+              loadProfileRef.current(session.user),
+              loadTransactionsRef.current(session.user.id),
             ]);
+          } else if (event === 'TOKEN_REFRESHED') {
+            setAuthUser(session.user);
           }
         } finally {
           if (mounted) setLoading(false);
@@ -230,7 +247,8 @@ function App() {
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, [loadProfile, loadTransactions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---- reCAPTCHA rendering ----
   useEffect(() => {
@@ -273,9 +291,11 @@ function App() {
     return () => clearInterval(timer);
   }, [countdown]);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
   // ---- Auth handlers ----
@@ -385,7 +405,47 @@ function App() {
   };
 
   const handleLogout = async () => {
+    setIsProfileOpen(false);
     await supabase.auth.signOut();
+  };
+
+  // ---- Profile modal helpers ----
+  const openProfileModal = () => {
+    setEditUsername(profile?.username || '');
+    setEditGender(profile?.gender || '');
+    setEditCountry(profile?.country || '');
+    setIsProfileOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!authUser || !profile) return;
+    if (editUsername.trim().length < 3) {
+      showToast('Username must be at least 3 characters', 'error');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: editUsername.trim(),
+          gender: editGender || null,
+          country: editCountry.trim() || null,
+        })
+        .eq('id', authUser.id);
+      if (error) throw error;
+      setProfile({
+        ...profile,
+        username: editUsername.trim(),
+        gender: editGender || null,
+        country: editCountry.trim() || null,
+      });
+      showToast('Profile updated successfully!', 'success');
+    } catch {
+      showToast('Failed to update profile. Try again.', 'error');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   // ---- Ad modal countdown ----
@@ -494,19 +554,21 @@ function App() {
 
     setSubmitting(true);
     try {
-      // Send notification email via Formspree
-      await fetch(FORMSPREE_ENDPOINT, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: methodName,
-          destination: destination.trim(),
-          requestedAmount: numAmount.toFixed(3) + ' ' + rules.currency,
-          fee: rules.fee.toFixed(3) + ' ' + rules.currency,
-          netAmount: (numAmount - rules.fee).toFixed(3) + ' ' + rules.currency,
-          time: new Date().toISOString(),
-        }),
-      });
+      // Send Telegram notification
+      const telegramText = `🔔 *New Withdrawal Request!*\n\n*User:* ${profile.email}\n*Amount:* ${numAmount.toFixed(3)} USDT\n*Method:* ${methodName}\n*Address:* ${destination.trim()}`;
+      const tgResponse = await fetch(
+        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            parse_mode: 'Markdown',
+            text: telegramText,
+          }),
+        }
+      );
+      if (!tgResponse.ok) throw new Error('Telegram notification failed');
 
       // Insert withdrawal request
       const { error: wError } = await supabase.from('withdrawal_requests').insert({
@@ -561,13 +623,23 @@ function App() {
     }
   };
 
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyReferral = () => {
     if (!profile) return;
     const link = `https://taskbite.app/?ref=${profile.referral_code}`;
     navigator.clipboard?.writeText(link);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
   };
+
+  // ---- Cleanup pending timers on unmount ----
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   // ---- Derived values ----
   const claimReady = countdown === 0;
@@ -807,8 +879,8 @@ function App() {
           {/* A-Ads Banner */}
           <div id="frame" style={{ width: '100%', margin: '20px auto', position: 'relative', zIndex: 10 }}>
             <iframe
-              data-aa="2454712"
-              src="https://acceptable.a-ads.com/2454712/?size=Adaptive"
+              data-aa="2454501"
+              src="https://acceptable.a-ads.com/2454501/?size=Adaptive"
               style={{ border: 0, padding: 0, width: '100%', height: '100px', overflow: 'hidden', display: 'block', margin: 'auto' }}
               title="A-Ads Banner"
             />
@@ -858,18 +930,14 @@ function App() {
               <span className="hidden sm:inline">Earn Offers</span>
               <span className="sm:hidden">Earn</span>
             </button>
-            <div className="flex items-center gap-2 rounded-full border border-[#30363d] bg-[#161b22] py-1 pl-1 pr-3">
+            <button
+              onClick={openProfileModal}
+              className="flex items-center gap-2 rounded-full border border-[#30363d] bg-[#161b22] py-1 pl-1 pr-3 cursor-pointer transition-all hover:border-[#58a6ff]/40 hover:bg-[#1f242c]"
+            >
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#58a6ff] to-[#1f6feb] text-xs font-bold text-white">
                 {(profile?.username || '?').charAt(0).toUpperCase()}
               </div>
               <span className="text-sm font-medium text-gray-300">{profile?.username}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#30363d] hover:text-white"
-              title="Log out"
-            >
-              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -1319,6 +1387,149 @@ function App() {
                 Note: For security and verification, withdrawals are processed within 7 business days.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
+      {isProfileOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+          onClick={() => setIsProfileOpen(false)}
+        >
+          <div
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl border border-[#30363d] bg-[#161b22] p-5 shadow-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#58a6ff]/10">
+                  <User className="h-5 w-5 text-[#58a6ff]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-white">My Profile</h2>
+                  <p className="text-xs text-gray-500">Manage your account</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsProfileOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#30363d] hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Avatar + Username preview */}
+            <div className="mb-5 flex flex-col items-center gap-2">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#58a6ff] to-[#1f6feb] text-xl font-bold text-white">
+                {(editUsername || profile?.username || '?').charAt(0).toUpperCase()}
+              </div>
+              <p className="text-sm font-medium text-gray-300">{editUsername || profile?.username}</p>
+            </div>
+
+            {/* Editable fields */}
+            <div className="space-y-4">
+              {/* Username */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Display Name / Username</label>
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    placeholder="Your username"
+                    className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                  />
+                </div>
+              </div>
+
+              {/* Email (read-only) */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Email (read-only)</label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+                  <input
+                    type="email"
+                    value={profile?.email || ''}
+                    readOnly
+                    className="w-full cursor-not-allowed rounded-xl border border-[#30363d] bg-[#0d1117] py-3 pl-10 pr-3 text-sm text-gray-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Gender (optional)</label>
+                <select
+                  value={editGender}
+                  onChange={(e) => setEditGender(e.target.value)}
+                  className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-3 text-sm text-white outline-none transition-colors focus:border-[#58a6ff]"
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Country */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">Country / Region (optional)</label>
+                <input
+                  type="text"
+                  value={editCountry}
+                  onChange={(e) => setEditCountry(e.target.value)}
+                  placeholder="e.g. United States"
+                  className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#58a6ff]"
+                />
+              </div>
+            </div>
+
+            {/* Save button */}
+            <button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#58a6ff] py-3 font-semibold text-[#0d1117] transition-all hover:bg-[#79b8ff] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingProfile ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#0d1117] border-t-transparent" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-5 w-5" />
+                  Save Profile
+                </>
+              )}
+            </button>
+
+            {/* Support card */}
+            <div className="mt-4 rounded-xl border border-[#30363d] bg-[#0d1117] p-4">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#58a6ff]" />
+                <div>
+                  <p className="text-xs text-gray-400">Need help or have an issue? Contact us at:</p>
+                  <a
+                    href="mailto:taskbitecontact@gmail.com"
+                    className="mt-1 inline-block text-sm font-medium text-[#58a6ff] transition-colors hover:text-[#79b8ff]"
+                  >
+                    taskbitecontact@gmail.com
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-transparent py-3 font-semibold text-red-400 transition-all hover:bg-red-500/10 active:scale-[0.98]"
+            >
+              <LogOut className="h-5 w-5" />
+              Log Out
+            </button>
           </div>
         </div>
       )}
