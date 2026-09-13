@@ -47,7 +47,7 @@ interface Profile {
   country?: string | null;
 }
 
-const FAUCET_REWARD = 0.001;
+const FAUCET_REWARD = 1;
 const FAUCET_COOLDOWN = 43200; // 12 hours in seconds
 const AD_VIEW_DURATION = 30;
 const AD_URL = 'https://www.profitableratecpmnetwork.com/ag1v3m83?key=8adb519f3b317f350d8485bb76c3a4c2';
