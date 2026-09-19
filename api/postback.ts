@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''; 
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req: any, res: any) {
-  const subId = req.query.subId || req.body.subId || req.query.sub_id;
-  const payout = req.query.payout || req.body.payout || req.query.amount || req.query.reward;
+  // The '?' safely prevents a crash if the body or query is empty
+  const subId = req.query?.subId || req.query?.sub_id || req.body?.subId;
+  const payout = req.query?.payout || req.query?.amount || req.body?.payout;
 
   if (!subId || !payout) {
     return res.status(400).send('Missing parameters');
@@ -33,4 +34,4 @@ export default async function handler(req: any, res: any) {
   }
 
   return res.status(200).send('OK');
-}
+    }
