@@ -1,25 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Connect to your existing Supabase database
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req: any, res: any) {
-  let subId = req.body?.subId || req.body?.sub_id || req.body?.subid || req.query?.subid || req.query?.subId;
-  let payout = req.body?.payout || req.body?.amount || req.body?.reward || req.query?.payout;
+  // 1. Get the User ID and Reward Amount from BitcoTasks
+  const subId = req.query.subId || req.body.subId || req.query.sub_id;
+  const payout = req.query.payout || req.body.payout || req.query.amount || req.query.reward;
 
-  // If BitcoTasks sends the literal test placeholder, grab a real user from Supabase automatically for testing!
-  if (!subId || subId === '[subid]' || subId.includes('[')) {
-    const { data: sampleUser } = await supabase.from('profiles').select('id').limit(1).single();
-    if (sampleUser) {
-      subId = sampleUser.id;
-    }
+  if (!subId || !payout) {
+    return res.status(400).send('Missing parameters');
   }
 
-  if (!payout || payout === '[payout]' || payout.includes('[')) {
-    payout = '0.50';
-  }
-
+  // 2. Look up the user's current balance
   const { data: user, error: fetchError } = await supabase
     .from('profiles')
     .select('balance')
@@ -30,6 +25,7 @@ export default async function handler(req: any, res: any) {
     return res.status(404).send('User not found in Supabase');
   }
 
+  // 3. Add the reward and update the database
   const newBalance = Number(user.balance || 0) + Number(payout);
   const { error: updateError } = await supabase
     .from('profiles')
@@ -40,5 +36,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).send('Database update failed');
   }
 
+  // 4. Tell BitcoTasks it was successful
   return res.status(200).send('OK');
 }
+
